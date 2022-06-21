@@ -89,7 +89,6 @@ def draw_dynamic_content(img, code_img_size, texts):
 
     y_min = TITLE_POS[1] + TITLE_FONT_SIZE + SUB_FONT_SIZE
     y_max = IG_IM_SIZE[1] - code_img_size[1] + CODE_WINDOW_MARGIN  # 92 is margin to code window.
-    print(y_min, y_max, total_height)
 
     # Split left over margin in 7 pieces, 3 above title, 1 between title and description and 3 below title.
     margin_segment = math.floor((y_max - y_min - total_height) / 7)
@@ -101,11 +100,12 @@ def draw_dynamic_content(img, code_img_size, texts):
     desc = textwrap.fill(texts.post_description, N_CHARS_PER_LINE)
     draw_text(img, desc, DESC_FONT_SIZE, (X_MARGIN, y_min + POST_FONT_SIZE + 4 * margin_segment), WHITE_COL)
 
-def compose_image():
+def get_today_str():
     today = datetime.datetime.today()
-    today_str = f'{today:%Y%m%d}'
+    return f'{today:%Y%m%d}'
 
-    texts = importlib.import_module(f'raw_material.{today_str}.texts')
+def compose_image():
+    texts = importlib.import_module(f'raw_material.{get_today_str()}.texts')
 
     # Create background.
     img = create_bg()
@@ -120,7 +120,7 @@ def compose_image():
     draw_image_from_path(img, ICON_POS, ICON_PATH_PNG, width=TITLE_FONT_SIZE + SUB_FONT_SIZE)
 
     # Draw code image.
-    code_img = resize_code_img(f'raw_material/{today_str}/carbon.png')
+    code_img = resize_code_img(f'raw_material/{get_today_str()}/carbon.png')
     code_img_pos = calculate_code_img_pos(code_img)
 
     img.paste(code_img, code_img_pos, code_img)
@@ -138,10 +138,6 @@ def generate_out_path():
     today_str = f'{today:%Y%m%d}'
     return os.path.join(OUTPUT_FOLDER, today_str, f'post.png')
 
-def save_img_to_file(img: Image, file: str):
-    img.save(file)
-
-
 def main():
     # Create image path
     out_path = generate_out_path()
@@ -151,7 +147,7 @@ def main():
     img = compose_image()
 
     # Save image to file
-    save_img_to_file(img, out_path)
+    img.save(out_path)
 
 
 if __name__ == '__main__':
