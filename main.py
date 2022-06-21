@@ -1,5 +1,6 @@
 import datetime
 import importlib
+import math
 import os
 import textwrap
 
@@ -18,13 +19,16 @@ POST_FONT_SIZE = 79
 DESC_FONT_SIZE = 31
 FOOTER_FONT_SIZE = 24
 
-TITLE_POS = (120, 60)
+X_MARGIN = 120
+CODE_WINDOW_MARGIN = 92  # Using carbon to generate code image, when rescaled to 1080px wide, margin is 92px.
+
+TITLE_POS = (X_MARGIN, 60)
 FOOTER_POS = (720, IG_IM_SIZE[1] - 50)
-SUBTITLE_POS = (TITLE_POS[0], TITLE_POS[1] + TITLE_FONT_SIZE)
+SUBTITLE_POS = (X_MARGIN, TITLE_POS[1] + TITLE_FONT_SIZE)
 ICON_POS = (810, TITLE_POS[1])
 SUBTITLE_BOTTOM = SUBTITLE_POS[1] + SUB_FONT_SIZE
-POST_TITLE_POS = (SUBTITLE_POS[0], SUBTITLE_POS[1] + SUB_FONT_SIZE + 79)
-DESC_POS = (POST_TITLE_POS[0], POST_TITLE_POS[1] + POST_FONT_SIZE + 50)
+POST_TITLE_POS = (X_MARGIN, SUBTITLE_POS[1] + SUB_FONT_SIZE + 79)
+DESC_POS = (X_MARGIN, POST_TITLE_POS[1] + POST_FONT_SIZE + 50)
 
 N_CHARS_PER_LINE = 45
 
@@ -78,6 +82,25 @@ def calculate_code_img_pos(code_img: Image):
     y_pos = IG_IM_SIZE[1] - code_img.size[1]
     return x_pos, y_pos
 
+def draw_dynamic_content(img, code_img_size, texts):
+    # Calculate total size of title and description.
+    desc_height = math.ceil(len(texts.post_description) / N_CHARS_PER_LINE) * DESC_FONT_SIZE
+    total_height = desc_height + POST_FONT_SIZE
+
+    y_min = TITLE_POS[1] + TITLE_FONT_SIZE + SUB_FONT_SIZE
+    y_max = IG_IM_SIZE[1] - code_img_size[1] + CODE_WINDOW_MARGIN  # 92 is margin to code window.
+    print(y_min, y_max, total_height)
+
+    # Split left over margin in 7 pieces, 3 above title, 1 between title and description and 3 below title.
+    margin_segment = math.floor((y_max - y_min - total_height) / 7)
+
+    # Draw post title
+    draw_text(img, texts.post_title, POST_FONT_SIZE, (X_MARGIN, y_min + 3 * margin_segment), WHITE_COL)
+
+    # Draw description.
+    desc = textwrap.fill(texts.post_description, N_CHARS_PER_LINE)
+    draw_text(img, desc, DESC_FONT_SIZE, (X_MARGIN, y_min + POST_FONT_SIZE + 4 * margin_segment), WHITE_COL)
+
 def compose_image():
     today = datetime.datetime.today()
     today_str = f'{today:%Y%m%d}'
@@ -102,12 +125,8 @@ def compose_image():
 
     img.paste(code_img, code_img_pos, code_img)
 
-    # Draw post title
-    draw_text(img, texts.post_title, POST_FONT_SIZE, POST_TITLE_POS, WHITE_COL)
-
-    # Draw description.
-    desc = textwrap.fill(texts.post_description, N_CHARS_PER_LINE)
-    draw_text(img, desc, DESC_FONT_SIZE, DESC_POS, WHITE_COL)
+    # Draw post specific title and text such that we always fit between code image and subtitle.
+    draw_dynamic_content(img, code_img.size, texts)
 
     # Draw footer text.
     draw_text(img, f'@software_bonanza', FOOTER_FONT_SIZE, FOOTER_POS, DARK_GREY_COL)
