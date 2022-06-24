@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import importlib
 import math
@@ -5,6 +6,9 @@ import os
 import textwrap
 
 from PIL import Image, ImageDraw, ImageFont
+
+# Local imports
+from webhandler import image_from_code_selenium
 
 IG_IM_SIZE = (1080, 1350)
 
@@ -38,7 +42,7 @@ FONT_PATH_BOLD = './fonts/FreeMonoBold.ttf'
 ICON_PATH_PNG = './icons/python_icon.png'
 
 RAW_FOLDER = './raw_material'
-OUTPUT_FOLDER = './finished_posts'
+OUTPUT_FOLDER = './posts'
 
 CODE_IMG_MARGIN_RAW = 224  # Whitespace on each side of code window.
 CODE_IMG_WANTED_WIDTH = 896  # A width that fits the instagram aspect.
@@ -82,6 +86,7 @@ def calculate_code_img_pos(code_img: Image):
     y_pos = IG_IM_SIZE[1] - code_img.size[1]
     return x_pos, y_pos
 
+
 def draw_dynamic_content(img, code_img_size, texts):
     # Calculate total size of title and description.
     desc_height = math.ceil(len(texts.post_description) / N_CHARS_PER_LINE) * DESC_FONT_SIZE
@@ -100,12 +105,17 @@ def draw_dynamic_content(img, code_img_size, texts):
     desc = textwrap.fill(texts.post_description, N_CHARS_PER_LINE)
     draw_text(img, desc, DESC_FONT_SIZE, (X_MARGIN, y_min + POST_FONT_SIZE + 4 * margin_segment), WHITE_COL)
 
+
 def get_today_str():
     today = datetime.datetime.today()
     return f'{today:%Y%m%d}'
 
-def compose_image():
-    texts = importlib.import_module(f'raw_material.{get_today_str()}.texts')
+
+def compose_image(source_folder_name=None):
+    if source_folder_name:
+        texts = importlib.import_module(f'raw_material.{source_folder_name}.texts')
+    else:
+        texts = importlib.import_module(f'raw_material.{get_today_str()}.texts')
 
     # Create background.
     img = create_bg()
@@ -120,7 +130,8 @@ def compose_image():
     draw_image_from_path(img, ICON_POS, ICON_PATH_PNG, width=TITLE_FONT_SIZE + SUB_FONT_SIZE)
 
     # Draw code image.
-    code_img = resize_code_img(f'raw_material/{get_today_str()}/carbon.png')
+    source_image_folder = source_folder_name if source_folder_name is not None else get_today_str()
+    code_img = resize_code_img(f'raw_material/{source_image_folder}/code.png')
     code_img_pos = calculate_code_img_pos(code_img)
 
     img.paste(code_img, code_img_pos, code_img)
@@ -133,22 +144,44 @@ def compose_image():
 
     return img
 
-def generate_out_path():
+
+def generate_out_path(out_folder_name=None):
     today = datetime.datetime.today()
     today_str = f'{today:%Y%m%d}'
-    return os.path.join(OUTPUT_FOLDER, today_str, f'post.png')
 
-def main():
+    if out_folder_name:
+        return os.path.join(OUTPUT_FOLDER, out_folder_name, f'post.png')
+    else:
+        return os.path.join(OUTPUT_FOLDER, today_str, f'post.png')
+
+
+def main(args):
+    """This script expects the folder ./raw_material/<todays_date_YYMMDD> to exist and hold the following:
+    texts.py -- A text file with python variables: 'subtitle', 'post_title' and 'post_description'
+    code.py  -- The code to be rendered in a pretty window.
+
+    This function produces an image with path ./posts/<todays_date_YYMMDD>/post.png from the given text and code files.
+    """
+
+    # Convert the raw code to an image using the website "https://carbon.now.sh"
+    image_from_code_selenium(source_folder_name=args.i)
+
     # Create image path
-    out_path = generate_out_path()
+    out_path = generate_out_path(out_folder_name=args.o)
     os.makedirs(out_path.rsplit('/', 1)[0], exist_ok=True)  # Make all dirs except leaf.
 
     # Compose image
-    img = compose_image()
+    img = compose_image(source_folder_name=args.i)
 
     # Save image to file
     img.save(out_path)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Generate image for instagram')
+    parser.add_argument('-o', type=str,
+                        help='Output folder name inside "posts" folder. Default is YYYYMMDD (todays date).')
+    parser.add_argument('-i', type=str,
+                        help='Input folder name inside "raw_material" folder. Default is YYYYMMDD (todays date).')
+
+    main(parser.parse_args())
