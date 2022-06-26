@@ -67,26 +67,29 @@ TITLE = "Python"
 class ImageComposer:
     """Composes an output image from source images and text."""
 
-    def __init__(self, nr_img: int, target_folder: str):
+    def __init__(self, nr_img: int, target_folder: str, img_idx_to_gen: list):
         self.nr_img: int = nr_img
         self.offset: XY = XY(0, 0)  # Offset when drawing onto image.
         self.img_size: XY = XY(1080, 1350)
         self.target_folder: str = target_folder
+        self.img_idx_to_gen = img_idx_to_gen
 
     def compose_images(self):
         """Compose the resulting output image and return it."""
         img: Image = self.init_image()
 
         for img_idx in range(self.nr_img):
+            if not self.should_generate(img_idx):
+                continue
+
             self.offset = XY(self.img_size.x * img_idx, 0)
             x_offset = self.offset.x + X_MARGIN
 
             # Create code view for first image.
-            #image_from_code_selenium(source_folder=self.target_folder, img_idx=img_idx)
+            image_from_code_selenium(source_folder=self.target_folder, img_idx=img_idx)
 
             # Load text for first image.
             texts = self.load_texts(img_idx)
-            print(f'texts type: {type(texts)}')
 
             # If first image, render title and subtitle.
             if img_idx == 0:
@@ -115,11 +118,11 @@ class ImageComposer:
 
         # Slice image into self.nr_img of IG friendly size.
         for img_idx in range(self.nr_img):
+            if not self.should_generate(img_idx):
+                continue
             out_path = os.path.join(OUTPUT_FOLDER, self.target_folder, f'post_{img_idx}.png')
             slice_boundary = (self.img_size.x * img_idx, 0,
                               self.img_size.x * (img_idx + 1), self.img_size.y)
-            print(img.size)
-            print(slice_boundary)
             img_slice = img.crop(box=slice_boundary)
             self.save_img(img_slice, out_path)
 
@@ -129,7 +132,7 @@ class ImageComposer:
         if img_idx == 0:
             y_min = TITLE_Y_POS + TITLE_FONT_SIZE + SUB_FONT_SIZE
         else:
-            y_min = X_MARGIN
+            y_min = 0
 
         return y_min, y_max
 
@@ -140,6 +143,12 @@ class ImageComposer:
         y_pos = self.img_size.y - code_img.height
         return x_pos, y_pos
 
+    def should_generate(self, img_idx):
+        if self.img_idx_to_gen and not img_idx in self.img_idx_to_gen:
+            return False
+        else:
+            return True
+
     def draw_dynamic_content(self, img: Image, img_idx: int, texts, y_min: int, y_max: int):
         x_offset = X_MARGIN + img_idx * self.img_size.x
         # Calculate total size of title and description.
@@ -148,11 +157,11 @@ class ImageComposer:
             total_height = desc_height + POST_TITLE_FONT_SIZE
         else:
             total_height = desc_height
-        # Split left over margin in 8 pieces, 4 above title, 1 between title and description and 3 below title.
-        margin_segment = math.floor((y_max - y_min - total_height) / 8)
+        # Split left over margin in 7 pieces, 3 above title, 1 between title and description and 3 below title.
+        margin_segment = math.floor((y_max - y_min - total_height) / 7)
 
         # Draw post title
-        post_title_pos = XY(x_offset, y_min + 4 * margin_segment)
+        post_title_pos = XY(x_offset, y_min + 2 * margin_segment)
         self.text_on_image(img, texts.post_title, POST_TITLE_FONT_SIZE, post_title_pos(), WHITE_COL())
 
         # Draw description.
@@ -195,7 +204,7 @@ class ImageComposer:
 
 
 def main(args):
-    img_composer = ImageComposer(nr_img=args.n, target_folder=args.t)
+    img_composer = ImageComposer(nr_img=args.n, target_folder=args.t, img_idx_to_gen=args.s)
     img_composer.compose_images()
 
 
@@ -206,4 +215,8 @@ if __name__ == '__main__':
                               generate output to.')
     parser.add_argument('-n', type=int, default=1,
                         help='Number of images to generate. Expects there to be an equal number of source text files.')
+    parser.add_argument('-s', type=int, nargs='+',
+                        help='List of which images to generate. Default is to generate all. Throws error if larger \
+                              than the number of images (-n).')
+
     main(parser.parse_args())
