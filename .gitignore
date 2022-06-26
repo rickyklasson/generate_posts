@@ -3,4 +3,4 @@
 __pycache__
 geckodriver.log
 posts
-raw_material/*/*.png
+raw_material

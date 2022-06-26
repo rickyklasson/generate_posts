@@ -9,8 +9,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 
 
-def code_to_text(folder_name):
-    path_to_code = os.path.join('./raw_material', folder_name, 'code.py')
+def code_to_text(folder_name, img_idx):
+    path_to_code = os.path.join('./raw_material', folder_name, f'code_{img_idx}.py')
     with open(path_to_code, 'r') as file:
         code = file.read()
 
@@ -27,15 +27,9 @@ def click_by_css_selector(driver, css_selector):
     time.sleep(0.1)
 
 
-def image_from_code_selenium(source_folder_name=None):
+def image_from_code_selenium(source_folder: str, img_idx: int):
     driver = webdriver.Firefox()
     driver.get("https://carbon.now.sh/")
-
-    if source_folder_name:
-        source_folder = source_folder_name
-    else:
-        today = datetime.datetime.today()
-        source_folder = f'{today:%Y%m%d}'
 
     actions = ActionChains(driver)
 
@@ -60,7 +54,7 @@ def image_from_code_selenium(source_folder_name=None):
     actions.send_keys(Keys.DELETE).perform()  # Delete all text in box.
 
     # Enter my code.
-    code_text = code_to_text(source_folder)
+    code_text = code_to_text(source_folder, img_idx)
     pyperclip.copy(code_text)  # Copy to clipboard
     actions.key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()  # Paste from clipboard
     actions.send_keys(Keys.BACKSPACE).perform()
@@ -82,6 +76,6 @@ def image_from_code_selenium(source_folder_name=None):
     driver.close()
 
     # Move to appropriate location.
-    target_file = os.path.join('./raw_material', source_folder, 'code.png')
+    target_file = os.path.join('./raw_material', source_folder, f'code_{img_idx}.png')
     os.makedirs(target_file.rsplit('/', 1)[0], exist_ok=True)  # Make all dirs except leaf.
     shutil.move(download_path, target_file)
