@@ -72,7 +72,7 @@ def image_from_code_selenium(source_folder: str, img_idx: int):
     click_by_css_selector(driver, '.jsx-3682524635')  # Select naming field
     actions.send_keys(image_name).perform()  # Name the image on format 'code_YYMMDD.png'
     click_by_css_selector(driver, '#export-png')
-    time.sleep(3)  # Wait for download to complete
+    time.sleep(2)  # Wait for download to complete
     driver.close()
 
     # Move to appropriate location.

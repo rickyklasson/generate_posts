@@ -37,7 +37,7 @@ DARK_GREY_COL = RGB(120, 120, 120)
 
 TITLE_FONT_SIZE = 48
 SUB_FONT_SIZE = 42
-POST_TITLE_FONT_SIZE = 72
+POST_TITLE_FONT_SIZE = 74
 DESC_FONT_SIZE = 31
 FOOTER_FONT_SIZE = 24
 
@@ -67,12 +67,15 @@ TITLE = "Python"
 class ImageComposer:
     """Composes an output image from source images and text."""
 
-    def __init__(self, nr_img: int, target_folder: str, img_idx_to_gen: list):
+    def __init__(self, nr_img: int, target_folder: str, img_idx_to_gen: list, generate_image: bool = True,
+                 autowrap: list = []):
         self.nr_img: int = nr_img
         self.offset: XY = XY(0, 0)  # Offset when drawing onto image.
         self.img_size: XY = XY(1080, 1350)
         self.target_folder: str = target_folder
         self.img_idx_to_gen = img_idx_to_gen
+        self.generate_image = generate_image
+        self.no_textwrap = autowrap
 
     def compose_images(self):
         """Compose the resulting output image and return it."""
@@ -86,7 +89,8 @@ class ImageComposer:
             x_offset = self.offset.x + X_MARGIN
 
             # Create code view for first image.
-            image_from_code_selenium(source_folder=self.target_folder, img_idx=img_idx)
+            if self.generate_image:
+                image_from_code_selenium(source_folder=self.target_folder, img_idx=img_idx)
 
             # Load text for first image.
             texts = self.load_texts(img_idx)
@@ -161,13 +165,16 @@ class ImageComposer:
         margin_segment = math.floor((y_max - y_min - total_height) / 7)
 
         # Draw post title
-        post_title_pos = XY(x_offset, y_min + 2 * margin_segment)
+        post_title_pos = XY(x_offset, y_min + 3 * margin_segment)
         self.text_on_image(img, texts.post_title, POST_TITLE_FONT_SIZE, post_title_pos(), WHITE_COL())
 
         # Draw description.
         post_desc_pos = (x_offset, post_title_pos.y + POST_TITLE_FONT_SIZE + margin_segment)
-        post_desc_wrapped = textwrap.fill(texts.post_description, DESC_NR_CHARS_LINE)
-        self.text_on_image(img, post_desc_wrapped, DESC_FONT_SIZE, post_desc_pos, WHITE_COL())
+        if self.no_textwrap and img_idx in self.no_textwrap:
+            post_desc_final = texts.post_description
+        else:
+            post_desc_final = textwrap.fill(texts.post_description, DESC_NR_CHARS_LINE)
+        self.text_on_image(img, post_desc_final, DESC_FONT_SIZE, post_desc_pos, WHITE_COL())
 
     def init_image(self):
         """Creates the image object to draw on to."""
@@ -204,19 +211,25 @@ class ImageComposer:
 
 
 def main(args):
-    img_composer = ImageComposer(nr_img=args.n, target_folder=args.t, img_idx_to_gen=args.s)
+    img_composer = ImageComposer(nr_img=args.nr_images, target_folder=args.target_folder,
+                                 img_idx_to_gen=args.select_images, generate_image=args.compose_only,
+                                 autowrap=args.no_textwrap)
     img_composer.compose_images()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate image for instagram')
-    parser.add_argument('-t', type=str, required=True,
+    parser.add_argument('-t', '--target-folder', type=str, required=True,
                         help='Target folder name inside "raw_material" to load data from and name inside posts to \
                               generate output to.')
-    parser.add_argument('-n', type=int, default=1,
+    parser.add_argument('-n', '--nr-images', type=int, default=1,
                         help='Number of images to generate. Expects there to be an equal number of source text files.')
-    parser.add_argument('-s', type=int, nargs='+',
+    parser.add_argument('-s', '--select-images', type=int, nargs='+',
                         help='List of which images to generate. Default is to generate all. Throws error if larger \
                               than the number of images (-n).')
+    parser.add_argument('-c', '--compose-only', action="store_false",
+                        help='Use this option to only compose the image without generating the code view.')
+    parser.add_argument('-nw', '--no-textwrap', type=int, nargs='+',
+                        help='Use this option to disable autowrap for the image indices supplied.')
 
     main(parser.parse_args())
